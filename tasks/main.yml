@@ -18,20 +18,29 @@
 
 - name: CONFIGURE | generate wireguard LOCAL privatekey
   command: "wg genkey"
+  when: wg_reconfigure|bool
   register: wg_local_privatekey
 - name: CONFIGURE | generate wireguard PEER privatekey
   command: "wg genkey"
+  when: wg_reconfigure|bool
   register: wg_peer_privatekey
 
 - name: CONFIGURE | generate wireguard LOCAL publickey from LOCAL privatekey
-  shell: echo "{{ wg_local_privatekey.stdout }}" | wg pubkey
+  shell: set -o pipefail && echo "{{ wg_local_privatekey.stdout }}" | wg pubkey
+  when: wg_reconfigure|bool
+  args:
+    executable: /bin/bash
   register: wg_local_publickey
 - name: CONFIGURE | generate wireguard PEER publickey from PEER privatekey
-  shell: echo "{{ wg_peer_privatekey.stdout }}" | wg pubkey
+  shell: set -o pipefail && echo "{{ wg_peer_privatekey.stdout }}" | wg pubkey
+  when: wg_reconfigure|bool
+  args:
+    executable: /bin/bash
   register: wg_peer_publickey
 
 - name: CONFIGURE | retrieve the public ip of LOCAL wireguard
   ipify_facts:
+  when: wg_reconfigure|bool
   # results will be used if variable "wg_local_externalip" is not defined manually
 
 - name: CONFIGURE | copy wireguard LOCAL configuration from template
@@ -40,28 +49,33 @@
     dest: /etc/wireguard/{{ wg_local_wgint }}.conf
     mode: 0600
     backup: yes
+  when: wg_reconfigure|bool
 - name: CONFIGURE | copy wireguard PEER configuration from template
   template:
     src: wg0-peer.conf.j2
     dest: /etc/wireguard/{{ wg_peer_wgint }}-peer.conf
     mode: 0600
     backup: yes
+  when: wg_reconfigure|bool
 
 - name: CONFIGURE | allow ssh in local firewall (ufw)
   ufw:
     rule: allow
     to_port: "22"
     proto: tcp
+  when: ufw_reconfigure|bool
 - name: CONFIGURE | allow wireguard in local firewall (ufw)
   ufw:
     rule: allow
     to_port: "\"{{ wg_local_listenport }}\""
     proto: udp
+  when: ufw_reconfigure|bool
 - name: CONFIGURE | enable local firewall (ufw) and deny incoming connections
   ufw:
     state: enabled
     direction: incoming
     policy: deny
+  when: ufw_reconfigure|bool
 
 - name: CONFIGURE | set ip forwarding on in /proc and in the sysctl file and reload if necessary
   sysctl:
@@ -70,6 +84,7 @@
     sysctl_set: yes
     state: present
     reload: yes
+  when: ip_forwarding|bool
 
 - name: START | enable wireguard service
   systemd:
@@ -82,10 +97,12 @@
 
 - name: STATUS | get wireguard status
   command: "wg"
+  when: wg_reconfigure|bool
   register: wg_local_status
-- name: STATUS | show wireguard status
+- name: STATUS | show wireguard status when reconfigured
   debug:
     var: wg_local_status.stdout_lines
+  when: wg_reconfigure|bool
 
 - name: INFO | wireguard configuration for PEER
   debug:
@@ -93,4 +110,3 @@
       - "Please COPY /etc/wireguard/{{ wg_peer_wgint }}-peer.conf to your wireguard PEER."
       - "OR get the QR-Code for your mobile device with the following command:"
       - "ssh root@{{ ansible_host }} 'qrencode -t ansiutf8 < /etc/wireguard/{{ wg_peer_wgint }}-peer.conf'"
-
