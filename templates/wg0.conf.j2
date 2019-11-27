@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+
+[Interface]
+#PublicKey = {{ wg_local_publickey.stdout }}
+PrivateKey = {{ wg_local_privatekey.stdout }}
+Address = {{ wg_local_address }}
+ListenPort = {{ wg_local_listenport }}
+PostUp = iptables -A FORWARD -i {{ wg_local_wgint }} -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ wg_local_ethint }} -j MASQUERADE
+PostDown = iptables -D FORWARD -i {{ wg_local_wgint }} -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ wg_local_ethint }} -j MASQUERADE
+#SaveConfig = true
+
+[Peer]
+PublicKey = {{ wg_peer_publickey.stdout }}
+AllowedIPs = {{ wg_peer_address }}

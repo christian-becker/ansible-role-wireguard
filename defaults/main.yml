@@ -1,0 +1,15 @@
+---
+# file: roles/wireguard/defaults/main.yml
+
+# LOCAL wireguard configuration
+#wg_local_externalip: 1.2.3.4
+wg_local_address: 10.11.1.1/32
+wg_local_listenport: 51820
+wg_local_wgint: wg0
+wg_local_ethint: eth0
+
+# PEER wireguard configuration
+wg_peer_address: 10.11.2.1/32
+wg_peer_wgint: wg0
+wg_peer_dns: 1.1.1.1
+

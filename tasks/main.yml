@@ -1,0 +1,96 @@
+---
+# file: roles/wireguard/tasks/main.yml
+#
+# These tasks install wireguard vpn on a Ubuntu Linux system.
+# It generates a "server" on localhost with ip forwarding and a "client" configuration.
+
+- name: INSTALL | add wireguard repository
+  apt_repository:
+    repo: ppa:wireguard/wireguard
+
+- name: INSTALL | install wireguard packages
+  apt:
+    force_apt_get: yes
+    pkg:
+    - wireguard-dkms
+    - wireguard-tools
+    - qrencode
+
+- name: CONFIGURE | generate wireguard LOCAL privatekey
+  command: "wg genkey"
+  register: wg_local_privatekey
+- name: CONFIGURE | generate wireguard PEER privatekey
+  command: "wg genkey"
+  register: wg_peer_privatekey
+
+- name: CONFIGURE | generate wireguard LOCAL publickey from LOCAL privatekey
+  shell: echo "{{ wg_local_privatekey.stdout }}" | wg pubkey
+  register: wg_local_publickey
+- name: CONFIGURE | generate wireguard PEER publickey from PEER privatekey
+  shell: echo "{{ wg_peer_privatekey.stdout }}" | wg pubkey
+  register: wg_peer_publickey
+
+- name: CONFIGURE | retrieve the public ip of LOCAL wireguard
+  ipify_facts:
+  # results will be used if variable "wg_local_externalip" is not defined manually
+
+- name: CONFIGURE | copy wireguard LOCAL configuration from template
+  template:
+    src: wg0.conf.j2
+    dest: /etc/wireguard/{{ wg_local_wgint }}.conf
+    mode: 0600
+    backup: yes
+- name: CONFIGURE | copy wireguard PEER configuration from template
+  template:
+    src: wg0-peer.conf.j2
+    dest: /etc/wireguard/{{ wg_peer_wgint }}-peer.conf
+    mode: 0600
+    backup: yes
+
+- name: CONFIGURE | allow ssh in local firewall (ufw)
+  ufw:
+    rule: allow
+    to_port: "22"
+    proto: tcp
+- name: CONFIGURE | allow wireguard in local firewall (ufw)
+  ufw:
+    rule: allow
+    to_port: "\"{{ wg_local_listenport }}\""
+    proto: udp
+- name: CONFIGURE | enable local firewall (ufw) and deny incoming connections
+  ufw:
+    state: enabled
+    direction: incoming
+    policy: deny
+
+- name: CONFIGURE | set ip forwarding on in /proc and in the sysctl file and reload if necessary
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: START | enable wireguard service
+  systemd:
+    name: wg-quick@{{ wg_local_wgint }}
+    enabled: yes
+- name: START | (re)start wireguard
+  systemd:
+    name: wg-quick@{{ wg_local_wgint }}
+    state: restarted
+
+- name: STATUS | get wireguard status
+  command: "wg"
+  register: wg_local_status
+- name: STATUS | show wireguard status
+  debug:
+    var: wg_local_status.stdout_lines
+
+- name: INFO | wireguard configuration for PEER
+  debug:
+    msg:
+      - "Please COPY /etc/wireguard/{{ wg_peer_wgint }}-peer.conf to your wireguard PEER."
+      - "OR get the QR-Code for your mobile device with the following command:"
+      - "ssh root@{{ ansible_host }} 'qrencode -t ansiutf8 < /etc/wireguard/{{ wg_peer_wgint }}-peer.conf'"
+

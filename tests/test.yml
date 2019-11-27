@@ -1,0 +1,6 @@
+---
+- name: installs and configures wireguard vpn and creates a suitable peer configuration
+  hosts: localhost
+  remote_user: root
+  roles:
+    - wireguard

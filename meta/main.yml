@@ -1,0 +1,25 @@
+galaxy_info:
+  author: Christian Becker
+  description: installs and configures wireguard vpn and creates a suitable peer configuration
+  license: MIT
+
+  min_ansible_version: 2.5
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - eoan
+        - disco
+        - bionic
+        - xenial
+        - trusty
+
+  galaxy_tags:
+    - networking
+    - security
+    - vpn
+    - linux
+    - wireguard
+
+dependencies: []
+

@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+[Interface]
+#PublicKey = {{ wg_peer_publickey.stdout }}
+PrivateKey = {{ wg_peer_privatekey.stdout }}
+Address = {{ wg_peer_address }}
+DNS = {{ wg_peer_dns }}
+
+[Peer]
+PublicKey = {{ wg_local_publickey.stdout }}
+Endpoint = {{ wg_local_externalip | default(ipify_public_ip) }}:{{ wg_local_listenport }}
+AllowedIPs = 0.0.0.0/0, ::/0
